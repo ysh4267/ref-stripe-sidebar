@@ -5,7 +5,7 @@ html, body {
   background: #fff;
 }
 
-/* svg 요소는 hidden 속성을 스스로 감추지 않는다. */
+/* SVG elements do not hide themselves for the hidden attribute. */
 [hidden] { display: none; }
 
 #scene {
@@ -17,7 +17,7 @@ html, body {
   user-select: none;
 }
 
-/* 사이드바 경계선. 실제 크기에서는 1px 선이다. */
+/* Sidebar edge: a 1px line at real size. */
 #edge { fill: #e4e6ea; }
 
 #bar {
@@ -33,7 +33,7 @@ html, body {
   outline: none;
 }
 
-/* 이름표는 바로 나타나고, 사라질 때만 0.3초 동안 흐려진다. */
+/* The tooltip appears at once and only fades out, over 0.3s. */
 #tip { opacity: 0; pointer-events: none; }
 #tip.on { opacity: 1; transition: none; }
 #tip.fade { transition: opacity 0.3s linear; }

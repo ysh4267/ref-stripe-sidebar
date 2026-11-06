@@ -1,33 +1,33 @@
-// Stripe 대시보드의 사이드바 접기 손잡이를 레퍼런스 영상 그대로 다시 그린다.
-// 모든 수치는 영상(1920x1080)을 프레임 단위로 재서 얻은 값이고, 단위는 영상 픽셀이다.
-// 손잡이에 올리면 사이드바 경계선이 살짝 줄어들거나(펼친 상태) 늘어나고(접힌 상태),
-// 손잡이 막대가 꺾쇠로 꺾였다가 포인터가 떠나면 다시 펴진다. 누르면 사이드바가 접히고 펼쳐진다.
-// 화면에는 사이드바와 관련된 것만 둔다(오른쪽 본문은 뺐다).
-// 영상은 실제 화면을 3.2배 키운 것이라, 화면에는 1/3.2 로 줄여 실제 사이드바 크기로 그린다.
+// Recreates the sidebar collapse handle of the Stripe dashboard from the reference video.
+// All numbers were measured frame by frame from the video (1920x1080), in video pixels.
+// Hovering the handle nudges the sidebar edge in (expanded) or out (collapsed),
+// and the handle bar bends into a chevron, straightening when the pointer leaves. Clicking collapses or expands the sidebar.
+// Only the sidebar is drawn (the content area on the right is left out).
+// The video is the real UI zoomed 3.2x, so the page draws it at 1/3.2 to get the real sidebar size.
 
 const NS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 
-const SCALE = 1 / 3.2; // 영상 1px 이 화면에서 차지하는 크기(CSS px)
-const HANDLE_Y = 550; // 영상에서 손잡이 가운데 높이. 화면에서는 창 세로 가운데에 둔다
-const EDGE = { open: 756.5, shut: 194 }; // 사이드바 오른쪽 경계선
-const PEEK = 25.5; // 손잡이에 올리면 경계선이 반대 상태 쪽으로 이만큼 밀린다
+const SCALE = 1 / 3.2; // CSS px per video px
+const HANDLE_Y = 550; // handle center height in the video; on screen it sits at the vertical middle of the window
+const EDGE = { open: 756.5, shut: 194 }; // right edge of the sidebar
+const PEEK = 25.5; // how far the edge moves toward the other state on hover
 
-// 손잡이. 평소에는 경계선 오른쪽 27.5px 의 세로 막대이고, 올리면 경계선 기준 32~49px 자리의 꺾쇠가 된다.
+// Handle: a vertical bar 27.5px right of the edge; on hover it becomes a chevron 32-49px from the edge.
 const BAR = [[27.5, 531], [27.5, 550], [27.5, 569]];
 const CHEVRON = {
-  open: [[49, 533.7], [32, 549.8], [49, 566]], // 펼친 상태: 접기 "<"
-  shut: [[33.8, 533.7], [47.8, 549.8], [33.8, 566]], // 접힌 상태: 펼치기 ">"
+  open: [[49, 533.7], [32, 549.8], [49, 566]], // expanded: collapse "<"
+  shut: [[33.8, 533.7], [47.8, 549.8], [33.8, 566]], // collapsed: expand ">"
 };
 const BAR_IDLE = [138, 137, 150];
 const BAR_HOT = [84, 91, 98];
 
-// 시간(ms). 이름표는 바로 뜨고 사라질 때만 0.3초 흐려진다(style.css).
+// Timing (ms). The tooltip appears at once and only fades out, over 0.3s (style.css).
 const EDGE_IN = 120;
 const EDGE_OUT = 100;
 const BEND_IN = 80;
 const BEND_OUT = 100;
-const FOLD_MS = 300; // 접고 펼 때 경계선이 미끄러지는 시간
+const FOLD_MS = 300; // how long the edge slides when collapsing or expanding
 
 const TIP = {
   open: { label: 'Collapse', dx: 79, width: 227, ink: 174 },
@@ -48,7 +48,7 @@ const NAV = [
   { icon: 'reporting', label: 'Reporting', iconY: 354.5, baseline: 369, ink: 195 },
   { icon: 'more', label: 'More', iconY: 450.5, baseline: 465, ink: 100 },
 ];
-const SHUT_SHIFT = -95; // 접으면 제목 줄이 사라지고 아이콘이 한 줄 올라간다
+const SHUT_SHIFT = -95; // when collapsed the heading row goes away and the icons move up one row
 
 const scene = $('scene');
 const navLabels = $('nav-labels');
@@ -84,9 +84,9 @@ function icon(name, cx, cy, scale, color, width = 1.5) {
   return g;
 }
 
-/* ------------------------------------------------------------- 글자 맞추기 */
+/* ------------------------------------------------------------- text fitting */
 
-// 영상의 글꼴은 맥의 시스템 글꼴이다. Inter 로 대신하되, 대문자 높이와 잉크 폭을 영상과 같게 맞춘다.
+// The video uses the macOS system font. Inter stands in, sized so cap height and ink width match the video.
 const measure = document.createElement('canvas').getContext('2d');
 const capRatio = {};
 
@@ -112,7 +112,7 @@ function fitText(node, spec, offsetX = 0) {
   node.style.letterSpacing = `${((spec.ink - natural) / gaps).toFixed(3)}px`;
 }
 
-/* ------------------------------------------------------------- 장면 */
+/* ------------------------------------------------------------- scene */
 
 let products = null;
 
@@ -123,9 +123,9 @@ function build() {
     <stop offset=".5" stop-color="#f3f3f3"/><stop offset=".62" stop-color="#f5f5f5"/><stop offset=".8" stop-color="#fafafa"/>
     <stop offset="1" stop-color="#fff"/></linearGradient>`;
   scene.prepend(defs);
-  edge.setAttribute('width', 3.2); // 화면에서 1px
+  edge.setAttribute('width', 3.2); // 1px on screen
 
-  // 이름(제목, 항목 이름, 꺾쇠)은 사이드바 경계 안쪽만 보이고, 아이콘은 따로 움직인다.
+  // Labels (heading, item names, chevrons) are clipped to the sidebar edge; icons move separately.
   products = el('text', {}, navLabels);
   for (const item of NAV) {
     navIcons.append(icon(item.icon, 93.5, item.iconY, 3.2, '#707279'));
@@ -134,7 +134,7 @@ function build() {
   }
 }
 
-// 창 크기에 맞춰 보이는 범위를 정한다. 크기는 고정 배율, 손잡이는 창 세로 가운데.
+// Fit the visible area to the window: fixed scale, handle at the vertical middle.
 function fitView() {
   const w = window.innerWidth / SCALE;
   const h = window.innerHeight / SCALE;
@@ -155,10 +155,10 @@ function fitAll() {
   fitText(tipText, { text: t.label, x: 0, y: 567, cap: 32.6, ink: t.ink, weight: 400, fill: '#fff' }, peekEdge() + t.dx + 27.5);
 }
 
-/* ------------------------------------------------------------- 상태와 움직임 */
+/* ------------------------------------------------------------- state and motion */
 
 const state = { collapsed: false, hover: false };
-// fold: 0 펼침 ~ 1 접힘(접고 펼 때 미끄러진다), peek: 손잡이에 올렸을 때 경계선이 밀린 정도, bend: 막대가 꺾인 정도
+// fold: 0 expanded to 1 collapsed (slides on toggle), peek: how far the edge moved on hover, bend: how far the bar is bent
 const anim = { fold: 0, peek: 0, bend: 0 };
 const tweens = new Map();
 let frame = 0;
@@ -198,7 +198,7 @@ function render() {
   edge.setAttribute('x', (x - 1.6).toFixed(2));
   clipRect.setAttribute('width', Math.max(0, x - 2).toFixed(2));
   hit.setAttribute('x', (x - 20).toFixed(2));
-  // 접힐 때 이름은 빨리 흐려지고, 펼 때는 경계선이 거의 다 열린 뒤에 나타난다.
+  // Labels fade out quickly when collapsing and appear once the edge is almost fully open when expanding.
   const shown = state.collapsed ? clamp01(1 - anim.fold * 2.4) : clamp01((0.55 - anim.fold) / 0.55);
   navLabels.setAttribute('opacity', shown.toFixed(3));
   navIcons.setAttribute('transform', `translate(0 ${(SHUT_SHIFT * anim.fold).toFixed(2)})`);
@@ -229,7 +229,7 @@ function setHover(on) {
   tip.classList.toggle('fade', !on);
 }
 
-// 누르면 이름표를 내리고 경계선이 반대 자리로 미끄러진다. 손잡이도 경계선을 따라간다.
+// On click the tooltip goes away and the edge slides to the other position; the handle follows the edge.
 function toggle() {
   state.collapsed = !state.collapsed;
   state.hover = false;
@@ -260,9 +260,9 @@ hit.addEventListener('keydown', (event) => {
 });
 window.addEventListener('resize', fitView);
 
-/* ------------------------------------------------------------- 시연 */
+/* ------------------------------------------------------------- demo */
 
-// 갤러리 미리보기용. 주소에 ?demo 를 붙이면 포인터 없이 올리기와 누르기를 되풀이한다.
+// For the gallery preview: with ?demo the page repeats hover and click on its own.
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function demo() {
@@ -279,7 +279,7 @@ async function demo() {
   }
 }
 
-// 비교 도구(tools/compare.html)가 영상의 한 장면과 같은 자세를 바로 만들 때 쓴다.
+// Used by the comparison tool to set the exact pose of a video frame.
 window.__page = {
   pose({ collapsed = false, edge: edgeT = 0, bend = 0, tip: showTip = false } = {}) {
     if (state.collapsed !== collapsed) toggle();

@@ -3,10 +3,13 @@
 // 손잡이에 올리면 사이드바 경계선이 살짝 줄어들거나(펼친 상태) 늘어나고(접힌 상태),
 // 손잡이 막대가 꺾쇠로 꺾였다가 포인터가 떠나면 다시 펴진다. 누르면 사이드바가 접히고 펼쳐진다.
 // 화면에는 사이드바와 관련된 것만 둔다(오른쪽 본문은 뺐다).
+// 영상은 실제 화면을 3.2배 키운 것이라, 화면에는 1/3.2 로 줄여 실제 사이드바 크기로 그린다.
 
 const NS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 
+const SCALE = 1 / 3.2; // 영상 1px 이 화면에서 차지하는 크기(CSS px)
+const HANDLE_Y = 550; // 영상에서 손잡이 가운데 높이. 화면에서는 창 세로 가운데에 둔다
 const EDGE = { open: 756.5, shut: 194 }; // 사이드바 오른쪽 경계선
 const PEEK = 25.5; // 손잡이에 올리면 경계선이 반대 상태 쪽으로 이만큼 밀린다
 
@@ -24,6 +27,7 @@ const EDGE_IN = 120;
 const EDGE_OUT = 100;
 const BEND_IN = 80;
 const BEND_OUT = 100;
+const FOLD_MS = 300; // 접고 펼 때 경계선이 미끄러지는 시간
 
 const TIP = {
   open: { label: 'Collapse', dx: 79, width: 227, ink: 174 },
@@ -47,8 +51,10 @@ const NAV = [
 const SHUT_SHIFT = -95; // 접으면 제목 줄이 사라지고 아이콘이 한 줄 올라간다
 
 const scene = $('scene');
-const navOpen = $('nav-open');
-const navShut = $('nav-shut');
+const navLabels = $('nav-labels');
+const navIcons = $('nav-icons');
+const clipRect = $('side-clip-rect');
+const handle = $('handle');
 const edge = $('edge');
 const bar = $('bar');
 const hit = $('hit');
@@ -117,17 +123,27 @@ function build() {
     <stop offset=".5" stop-color="#f3f3f3"/><stop offset=".62" stop-color="#f5f5f5"/><stop offset=".8" stop-color="#fafafa"/>
     <stop offset="1" stop-color="#fff"/></linearGradient>`;
   scene.prepend(defs);
-  edge.setAttribute('width', 6);
+  edge.setAttribute('width', 3.2); // 화면에서 1px
 
-  // 펼친 사이드바: 제목, 아이콘, 이름, 꺾쇠
-  products = el('text', {}, navOpen);
+  // 이름(제목, 항목 이름, 꺾쇠)은 사이드바 경계 안쪽만 보이고, 아이콘은 따로 움직인다.
+  products = el('text', {}, navLabels);
   for (const item of NAV) {
-    navOpen.append(icon(item.icon, 93.5, item.iconY, 3.2, '#707279'));
-    item.node = el('text', {}, navOpen);
-    navOpen.append(icon('chevron', 662, item.baseline - 13, 3.2, '#78787a', 1.35));
+    navIcons.append(icon(item.icon, 93.5, item.iconY, 3.2, '#707279'));
+    item.node = el('text', {}, navLabels);
+    navLabels.append(icon('chevron', 662, item.baseline - 13, 3.2, '#78787a', 1.35));
   }
-  // 접힌 사이드바: 아이콘만, 한 줄 위로
-  for (const item of NAV) navShut.append(icon(item.icon, 93.5, item.iconY + SHUT_SHIFT, 3.2, '#707279'));
+}
+
+// 창 크기에 맞춰 보이는 범위를 정한다. 크기는 고정 배율, 손잡이는 창 세로 가운데.
+function fitView() {
+  const w = window.innerWidth / SCALE;
+  const h = window.innerHeight / SCALE;
+  scene.setAttribute('viewBox', `0 0 ${w.toFixed(1)} ${h.toFixed(1)}`);
+  const dy = h / 2 - HANDLE_Y;
+  handle.setAttribute('transform', `translate(0 ${dy.toFixed(1)})`);
+  tip.setAttribute('transform', `translate(0 ${dy.toFixed(1)})`);
+  edge.setAttribute('y', -20);
+  edge.setAttribute('height', (h + 40).toFixed(1));
 }
 
 function fitAll() {
@@ -142,16 +158,19 @@ function fitAll() {
 /* ------------------------------------------------------------- 상태와 움직임 */
 
 const state = { collapsed: false, hover: false };
-const anim = { edge: EDGE.open, bend: 0 };
+// fold: 0 펼침 ~ 1 접힘(접고 펼 때 미끄러진다), peek: 손잡이에 올렸을 때 경계선이 밀린 정도, bend: 막대가 꺾인 정도
+const anim = { fold: 0, peek: 0, bend: 0 };
 const tweens = new Map();
 let frame = 0;
 
 const idleEdge = () => (state.collapsed ? EDGE.shut : EDGE.open);
 const peekEdge = () => (state.collapsed ? EDGE.shut + PEEK : EDGE.open - PEEK);
 const easeOut = (t) => 1 - (1 - t) * (1 - t);
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
-function tween(key, to, ms) {
-  tweens.set(key, { from: anim[key], to, start: performance.now(), ms });
+function tween(key, to, ms, ease = easeOut) {
+  tweens.set(key, { from: anim[key], to, start: performance.now(), ms, ease });
   if (!frame) frame = requestAnimationFrame(tick);
 }
 
@@ -159,7 +178,7 @@ function tick(now) {
   frame = 0;
   for (const [key, tw] of tweens) {
     const t = Math.min(1, (now - tw.start) / tw.ms);
-    anim[key] = tw.from + (tw.to - tw.from) * easeOut(t);
+    anim[key] = tw.from + (tw.to - tw.from) * tw.ease(t);
     if (t >= 1) tweens.delete(key);
   }
   render();
@@ -168,22 +187,31 @@ function tick(now) {
 
 const mix = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(' ')})`;
 
+function edgeNow() {
+  const base = EDGE.open + (EDGE.shut - EDGE.open) * anim.fold;
+  const dir = state.collapsed ? 1 : -1;
+  return base + dir * PEEK * anim.peek;
+}
+
 function render() {
-  edge.setAttribute('x', (anim.edge - 3).toFixed(2));
+  const x = edgeNow();
+  edge.setAttribute('x', (x - 1.6).toFixed(2));
+  clipRect.setAttribute('width', Math.max(0, x - 2).toFixed(2));
+  hit.setAttribute('x', (x - 20).toFixed(2));
+  // 접힐 때 이름은 빨리 흐려지고, 펼 때는 경계선이 거의 다 열린 뒤에 나타난다.
+  const shown = state.collapsed ? clamp01(1 - anim.fold * 2.4) : clamp01((0.55 - anim.fold) / 0.55);
+  navLabels.setAttribute('opacity', shown.toFixed(3));
+  navIcons.setAttribute('transform', `translate(0 ${(SHUT_SHIFT * anim.fold).toFixed(2)})`);
   const target = CHEVRON[state.collapsed ? 'shut' : 'open'];
-  const points = BAR.map(([x, y], i) => {
+  const points = BAR.map(([bx, by], i) => {
     const [cx, cy] = target[i];
-    return `${(anim.edge + x + (cx - x) * anim.bend).toFixed(2)},${(y + (cy - y) * anim.bend).toFixed(2)}`;
+    return `${(x + bx + (cx - bx) * anim.bend).toFixed(2)},${(by + (cy - by) * anim.bend).toFixed(2)}`;
   });
   bar.setAttribute('points', points.join(' '));
   bar.setAttribute('stroke', mix(BAR_IDLE, BAR_HOT, anim.bend));
 }
 
-// 상태가 바뀌면(접기·펼치기) 영상처럼 한 프레임 만에 자리를 옮긴다.
 function layout() {
-  navOpen.toggleAttribute('hidden', state.collapsed);
-  navShut.toggleAttribute('hidden', !state.collapsed);
-  hit.setAttribute('x', idleEdge() - 20);
   hit.setAttribute('aria-label', state.collapsed ? 'Expand' : 'Collapse');
   const t = TIP[state.collapsed ? 'shut' : 'open'];
   tipBox.setAttribute('x', peekEdge() + t.dx);
@@ -195,23 +223,26 @@ function layout() {
 function setHover(on) {
   if (state.hover === on) return;
   state.hover = on;
-  tween('edge', on ? peekEdge() : idleEdge(), on ? EDGE_IN : EDGE_OUT);
+  tween('peek', on ? 1 : 0, on ? EDGE_IN : EDGE_OUT);
   tween('bend', on ? 1 : 0, on ? BEND_IN : BEND_OUT);
   tip.classList.toggle('on', on);
   tip.classList.toggle('fade', !on);
 }
 
+// 누르면 이름표를 내리고 경계선이 반대 자리로 미끄러진다. 손잡이도 경계선을 따라간다.
 function toggle() {
   state.collapsed = !state.collapsed;
   state.hover = false;
-  tweens.clear();
-  anim.edge = idleEdge();
-  anim.bend = 0;
   tip.classList.remove('on', 'fade');
+  tween('fold', state.collapsed ? 1 : 0, FOLD_MS, easeInOut);
+  tween('peek', 0, 120);
+  tween('bend', 0, BEND_OUT);
   layout();
 }
 
-hit.addEventListener('pointerenter', () => setHover(true));
+hit.addEventListener('pointerenter', () => {
+  if (!tweens.has('fold')) setHover(true);
+});
 hit.addEventListener('pointerleave', () => setHover(false));
 hit.addEventListener('click', () => {
   toggle();
@@ -227,6 +258,7 @@ hit.addEventListener('keydown', (event) => {
   toggle();
   setHover(true);
 });
+window.addEventListener('resize', fitView);
 
 /* ------------------------------------------------------------- 시연 */
 
@@ -253,7 +285,8 @@ window.__page = {
     if (state.collapsed !== collapsed) toggle();
     tweens.clear();
     state.hover = showTip;
-    anim.edge = idleEdge() + (peekEdge() - idleEdge()) * edgeT;
+    anim.fold = collapsed ? 1 : 0;
+    anim.peek = edgeT;
     anim.bend = bend;
     tip.classList.toggle('on', showTip);
     tip.classList.remove('fade');
@@ -262,6 +295,7 @@ window.__page = {
 };
 
 build();
+fitView();
 layout();
 Promise.all([400, 440, 450].map((weight) => document.fonts.load(`${weight} 40px Inter`)))
   .catch(() => {})

@@ -17,8 +17,8 @@ html, body {
   user-select: none;
 }
 
-/* 사이드바 경계선. 영상에서는 1px 선이 확대되어 4px 정도로 번져 보인다. */
-#edge { fill: url(#edge-fade); }
+/* 사이드바 경계선. 실제 크기에서는 1px 선이다. */
+#edge { fill: #e4e6ea; }
 
 #bar {
   fill: none;

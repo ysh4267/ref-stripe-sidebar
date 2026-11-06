@@ -10,7 +10,8 @@ References:
 
 - Hovering the handle nudges the sidebar edge in when expanded and out when collapsed, and the handle bar bends into a chevron that straightens again when the pointer leaves. A tooltip appears at once and fades out over 0.3s.
 - Clicking slides the sidebar edge closed or open over 0.3s, and the checklist moves with it. As in the reference, the items switch at once: collapsing hides the heading, names and chevrons and moves the icons up a row; expanding brings them back, revealed by the edge as it opens.
-- Checking an item fills the pie next to the title clockwise from 12 o'clock in 0.09s; unchecking shrinks it in 0.1s. While pressed, the row highlights and the checkbox grows; on check, the fill grows over 0.17s, the check mark draws after 0.2s and the label dims after 0.33s.
+- Three projects (X, Y, Z) each have a circle next to the title. A locked project shows a dashed grey circle and dimmed to-dos that cannot be checked; pressing one only nudges the circle. Pressing the circle pops it like a checkbox and draws a solid blue ring clockwise from 12 o'clock as the dashes fade, which unlocks the to-dos. Pressing it again unwinds the ring and locks the project.
+- Checking a to-do fills the project's pie clockwise from 12 o'clock in 0.09s; unchecking shrinks it in 0.1s. While pressed, the row highlights and the checkbox grows; on check, the fill grows over 0.17s, the check mark draws after 0.2s and the label dims after 0.33s.
 
 ## How it was made
 
@@ -22,4 +23,4 @@ References:
 
 ## URL options
 
-- `?demo`: collapses the sidebar, checks the items, expands it and unchecks them, on a loop (for the gallery preview).
+- `?demo`: tries a locked to-do, unlocks and checks projects, collapses and expands the sidebar, then puts everything back, on a loop (for the gallery preview).

@@ -116,7 +116,9 @@ function fitText(node, spec, offsetX = 0) {
   node.setAttribute('y', spec.y);
   if (spec.fill) node.setAttribute('fill', spec.fill);
   node.style.font = `${spec.weight} ${size.toFixed(3)}px Inter, sans-serif`;
-  node.style.letterSpacing = `${((spec.ink - natural) / gaps).toFixed(3)}px`;
+  // Without a measured ink width the text keeps its natural spacing.
+  const spacing = spec.ink == null ? 0 : (spec.ink - natural) / gaps;
+  node.style.letterSpacing = `${spacing.toFixed(3)}px`;
 }
 
 /* ------------------------------------------------------------- scene */
@@ -275,30 +277,45 @@ window.addEventListener('resize', fitView);
 
 /* ------------------------------------------------------------- demo */
 
-// For the gallery preview: with ?demo the page collapses the sidebar, checks the items, expands it and unchecks them.
+// For the gallery preview: with ?demo the page shows a locked project, unlocks and checks projects,
+// collapses and expands the sidebar, then puts everything back, on a loop.
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function demo() {
   hit.style.pointerEvents = 'none';
   checklist.disable();
   for (;;) {
+    await wait(700);
+    await checklist.tapRow(1, 0); // locked: only nudges the dashed circle
+    await wait(700);
+    await checklist.tapProject(1);
     await wait(800);
-    setHover(true);
-    await wait(1200);
-    toggle();
-    await wait(700);
-    for (let i = 0; i < checklist.count; i += 1) {
-      await checklist.tap(i);
-      await wait(800);
+    for (const k of [0, 1, 2]) {
+      await checklist.tapRow(1, k);
+      await wait(550);
     }
     setHover(true);
-    await wait(1200);
+    await wait(1000);
     toggle();
     await wait(700);
-    for (let i = checklist.count - 1; i >= 0; i -= 1) {
-      await checklist.tap(i);
-      await wait(700);
+    await checklist.tapRow(0, 0);
+    await wait(550);
+    await checklist.tapProject(2);
+    await wait(800);
+    await checklist.tapRow(2, 0);
+    await wait(700);
+    setHover(true);
+    await wait(1000);
+    toggle();
+    await wait(900);
+    for (const [p, k] of [[2, 0], [1, 2], [1, 1], [1, 0], [0, 0]]) {
+      await checklist.tapRow(p, k);
+      await wait(350);
     }
+    await checklist.tapProject(2);
+    await wait(500);
+    await checklist.tapProject(1);
+    await wait(900);
   }
 }
 

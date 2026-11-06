@@ -56,3 +56,22 @@ html, body {
 .row .label { fill: #2c2c2e; transition: fill 0.06s ease; }
 .row.done .label { fill: #9b9ba1; transition: fill 0.15s ease 0.33s; }
 .row .hit { fill: transparent; cursor: default; outline: none; }
+
+/* Projects: a dashed grey circle while locked. Clicking it pops the icon (like a checkbox) and draws a solid
+   ring clockwise from 12 o'clock while the dashes fade; the pie then fills back in. Clicking again locks it. */
+.project .icon { transform-box: fill-box; transform-origin: center; transition: transform 0.08s ease-out; }
+.project.pressed .icon { transform: scale(1.14); }
+.project .ring-dash { opacity: 1; transition: opacity 0.2s ease 0.1s; }
+.project.active .ring-dash { opacity: 0; transition: opacity 0.17s ease 0.02s; }
+.project .ring-solid { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 0.18s ease-in; }
+.project.active .ring-solid { stroke-dashoffset: 0; transition: stroke-dashoffset 0.3s cubic-bezier(0.65, 0, 0.35, 1) 0.02s; }
+.project.nudge .icon { animation: nudge 0.32s ease; }
+@keyframes nudge { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.18); } }
+.ring-hit { fill: transparent; cursor: pointer; outline: none; }
+
+/* A locked project's to-dos are dimmed and cannot be checked. */
+.project .row { transition: opacity 0.2s ease; }
+.project:not(.active) .row { opacity: 0.42; }
+.project:not(.active) .row .hit { cursor: not-allowed; }
+.project:not(.active) .row.pressed .band { opacity: 0; }
+.project:not(.active) .row.pressed .box { transform: none; }

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Recreation of the Stripe dashboard sidebar collapse handle, matched to the reference video">
-  <title>Sidebar Toggle</title>
+  <meta name="description" content="Recreation of the Stripe sidebar collapse handle with the Things progress pie in the content area">
+  <title>Sidebar &amp; Progress</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,10 +14,11 @@
 </head>
 <body>
   <!-- Coordinates are reference video pixels (1920x1080), drawn at real sidebar size (1/3.2) on screen (main.js). -->
-  <svg id="scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMinYMin meet" aria-label="Sidebar">
+  <svg id="scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMinYMin meet" aria-label="Sidebar and checklist">
     <clipPath id="side-clip"><rect id="side-clip-rect" x="0" y="-100" width="756.5" height="20000"></rect></clipPath>
     <g id="nav-labels" clip-path="url(#side-clip)"></g>
     <g id="nav-icons"></g>
+    <g id="content"></g>
     <rect id="edge" y="-20" width="4" height="1200"></rect>
     <g id="handle">
       <polyline id="bar" points=""></polyline>

@@ -5,6 +5,8 @@
 // Only the sidebar is drawn (the content area on the right is left out).
 // The video is the real UI zoomed 3.2x, so the page draws it at 1/3.2 to get the real sidebar size.
 
+import { buildProgress, CONTENT } from './progress.js';
+
 const NS = 'http://www.w3.org/2000/svg';
 const $ = (id) => document.getElementById(id);
 
@@ -28,6 +30,10 @@ const EDGE_OUT = 100;
 const BEND_IN = 80;
 const BEND_OUT = 100;
 const FOLD_MS = 300; // how long the edge slides when collapsing or expanding
+// The Things checklist sits in the content area: its video is zoomed about 2.4x (0.42 CSS px per video px).
+const CONTENT_SCALE = 0.42 / (1 / 3.2);
+const CONTENT_GAP = 56 * 3.2; // space between the sidebar edge and the checklist (56 CSS px)
+const CONTENT_TOP = 36 * 3.2; // top of the checklist (36 CSS px)
 
 const TIP = {
   open: { label: 'Collapse', dx: 79, width: 227, ink: 174 },
@@ -53,6 +59,7 @@ const SHUT_SHIFT = -95; // when collapsed the heading row goes away and the icon
 const scene = $('scene');
 const navLabels = $('nav-labels');
 const navIcons = $('nav-icons');
+const content = $('content');
 const clipRect = $('side-clip-rect');
 const handle = $('handle');
 const edge = $('edge');
@@ -107,7 +114,7 @@ function fitText(node, spec, offsetX = 0) {
   node.textContent = spec.text;
   node.setAttribute('x', (offsetX + spec.x + m.actualBoundingBoxLeft).toFixed(2));
   node.setAttribute('y', spec.y);
-  node.setAttribute('fill', spec.fill);
+  if (spec.fill) node.setAttribute('fill', spec.fill);
   node.style.font = `${spec.weight} ${size.toFixed(3)}px Inter, sans-serif`;
   node.style.letterSpacing = `${((spec.ink - natural) / gaps).toFixed(3)}px`;
 }
@@ -115,6 +122,7 @@ function fitText(node, spec, offsetX = 0) {
 /* ------------------------------------------------------------- scene */
 
 let products = null;
+let checklist = null;
 
 function build() {
   const defs = el('defs', {}, scene);
@@ -132,6 +140,7 @@ function build() {
     item.node = el('text', {}, navLabels);
     navLabels.append(icon('chevron', 662, item.baseline - 13, 3.2, '#78787a', 1.35));
   }
+  checklist = buildProgress(content, fitText);
 }
 
 // Fit the visible area to the window: fixed scale, handle at the vertical middle.
@@ -139,7 +148,9 @@ function fitView() {
   const w = window.innerWidth / SCALE;
   const h = window.innerHeight / SCALE;
   scene.setAttribute('viewBox', `0 0 ${w.toFixed(1)} ${h.toFixed(1)}`);
-  const dy = h / 2 - HANDLE_Y;
+  // Middle of the window, but in short windows no higher than 300px so the tooltip stays below the checklist.
+  const handleCss = Math.max(window.innerHeight / 2, Math.min(300, window.innerHeight - 40));
+  const dy = handleCss / SCALE - HANDLE_Y;
   handle.setAttribute('transform', `translate(0 ${dy.toFixed(1)})`);
   tip.setAttribute('transform', `translate(0 ${dy.toFixed(1)})`);
   edge.setAttribute('y', -20);
@@ -167,7 +178,6 @@ const idleEdge = () => (state.collapsed ? EDGE.shut : EDGE.open);
 const peekEdge = () => (state.collapsed ? EDGE.shut + PEEK : EDGE.open - PEEK);
 const easeOut = (t) => 1 - (1 - t) * (1 - t);
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
 function tween(key, to, ms, ease = easeOut) {
   tweens.set(key, { from: anim[key], to, start: performance.now(), ms, ease });
@@ -198,10 +208,13 @@ function render() {
   edge.setAttribute('x', (x - 1.6).toFixed(2));
   clipRect.setAttribute('width', Math.max(0, x - 2).toFixed(2));
   hit.setAttribute('x', (x - 20).toFixed(2));
-  // Labels fade out quickly when collapsing and appear once the edge is almost fully open when expanding.
-  const shown = state.collapsed ? clamp01(1 - anim.fold * 2.4) : clamp01((0.55 - anim.fold) / 0.55);
-  navLabels.setAttribute('opacity', shown.toFixed(3));
-  navIcons.setAttribute('transform', `translate(0 ${(SHUT_SHIFT * anim.fold).toFixed(2)})`);
+  // As in the reference, the items switch at once on click: collapsing hides the heading, names and chevrons and
+  // moves the icons up a row; expanding brings them back, revealed by the edge as it slides open.
+  navLabels.style.display = state.collapsed ? 'none' : '';
+  navIcons.setAttribute('transform', `translate(0 ${state.collapsed ? SHUT_SHIFT : 0})`);
+  // The checklist follows the sidebar edge (without the small hover nudge).
+  const base = EDGE.open + (EDGE.shut - EDGE.open) * anim.fold;
+  content.setAttribute('transform', `translate(${(base + CONTENT_GAP).toFixed(2)} ${CONTENT_TOP}) scale(${CONTENT_SCALE.toFixed(4)}) translate(${-CONTENT.x0} ${-CONTENT.y0})`);
   const target = CHEVRON[state.collapsed ? 'shut' : 'open'];
   const points = BAR.map(([bx, by], i) => {
     const [cx, cy] = target[i];
@@ -262,20 +275,30 @@ window.addEventListener('resize', fitView);
 
 /* ------------------------------------------------------------- demo */
 
-// For the gallery preview: with ?demo the page repeats hover and click on its own.
+// For the gallery preview: with ?demo the page collapses the sidebar, checks the items, expands it and unchecks them.
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function demo() {
   hit.style.pointerEvents = 'none';
+  checklist.disable();
   for (;;) {
-    await wait(900);
+    await wait(800);
     setHover(true);
-    await wait(1500);
+    await wait(1200);
     toggle();
-    await wait(1000);
+    await wait(700);
+    for (let i = 0; i < checklist.count; i += 1) {
+      await checklist.tap(i);
+      await wait(800);
+    }
     setHover(true);
-    await wait(1500);
+    await wait(1200);
     toggle();
+    await wait(700);
+    for (let i = checklist.count - 1; i >= 0; i -= 1) {
+      await checklist.tap(i);
+      await wait(700);
+    }
   }
 }
 
@@ -302,5 +325,6 @@ Promise.all([400, 440, 450].map((weight) => document.fonts.load(`${weight} 40px 
   .then(() => {
     for (const key of Object.keys(capRatio)) delete capRatio[key];
     fitAll();
+    checklist.fitAll();
   });
 if (new URLSearchParams(location.search).has('demo')) demo();

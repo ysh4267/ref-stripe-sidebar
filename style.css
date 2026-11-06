@@ -41,3 +41,18 @@ html, body {
 #tip-text { fill: #fff; }
 
 .line-icon { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Checklist rows in the content area (timings from the Things reference). */
+.row .band { opacity: 0; }
+.row.pressed .band { opacity: 1; }
+.row .box { transform-box: fill-box; transform-origin: center; transition: transform 0.08s ease-out; }
+.row.pressed .box { transform: scale(1.14); }
+.row .outline { opacity: 1; transition: opacity 0.15s ease; }
+.row.done .outline { opacity: 0; transition: opacity 0.17s ease 0.02s; }
+.row .fill { opacity: 0; transition: opacity 0.15s ease; }
+.row.done .fill { opacity: 1; transition: opacity 0.17s ease 0.02s; }
+.row .check { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 0s linear 0.16s; }
+.row.done .check { stroke-dashoffset: 0; transition: stroke-dashoffset 0.15s ease-out 0.2s; }
+.row .label { fill: #2c2c2e; transition: fill 0.06s ease; }
+.row.done .label { fill: #9b9ba1; transition: fill 0.15s ease 0.33s; }
+.row .hit { fill: transparent; cursor: default; outline: none; }

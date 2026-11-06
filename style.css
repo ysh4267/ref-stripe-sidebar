@@ -1,0 +1,43 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* svg 요소는 hidden 속성을 스스로 감추지 않는다. */
+[hidden] { display: none; }
+
+#scene {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  font-family: Inter, -apple-system, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* 사이드바 경계선. 영상에서는 1px 선이 확대되어 4px 정도로 번져 보인다. */
+#edge { fill: url(#edge-fade); }
+
+#bar {
+  fill: none;
+  stroke-width: 5.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#hit {
+  fill: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+/* 이름표는 바로 나타나고, 사라질 때만 0.3초 동안 흐려진다. */
+#tip { opacity: 0; pointer-events: none; }
+#tip.on { opacity: 1; transition: none; }
+#tip.fade { transition: opacity 0.3s linear; }
+#tip-box { fill: #464e59; filter: drop-shadow(0 6px 10px rgb(20 24 32 / 0.14)); }
+#tip-text { fill: #fff; }
+
+.line-icon { fill: none; stroke-linecap: round; stroke-linejoin: round; }
